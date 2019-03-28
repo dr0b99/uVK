@@ -138,9 +138,9 @@
             <RowDefinition Height="85" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-
+        
         <!--  Title  -->
-        <Grid>
+        <Grid Name="MainGrid" Visibility="Visible" >
             <Border Margin="5" Background="{Binding ForegroundLightBrush, FallbackValue=#FFFFFF}" CornerRadius="{Binding FallbackValue=5}">
                 <Border.Effect>
                     <DropShadowEffect Opacity="0.3" ShadowDepth="0" />
@@ -154,11 +154,10 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid
-                        Name="gridMain"
-                        Grid.RowSpan="2"
-                        Margin="5"
-                        Background="#FFFFFF"
-                        Visibility="Visible">
+                          Grid.RowSpan="2"
+                          Margin="5"
+                          Background="#FFFFFF">
+                        
                         <StackPanel Orientation="Horizontal">
 
                             <Border Background="#58595b"
@@ -208,17 +207,24 @@
 
                             </Button>
 
-                            <Border Margin="5 0 0 0" Background="#E9EDF1" CornerRadius="5">
+                            <Border Margin="5 0 0 0" 
+                                    Background="#E9EDF1"
+                                    CornerRadius="5" Width="67">
 
                                 <!--Картинка аудиозаписи-->
-                                <Image
-                                    Name="MusicImage"
-                                    Margin="5"
-                                    Source="/Images/logo.png"
-                                    Stretch="UniformToFill" />
+                                <Rectangle RadiusX="5" RadiusY="5"
+                                           Width="55"
+                                           Height="55">
+
+                                    <Rectangle.Fill>
+                                        <ImageBrush x:Name="MusicImage"
+                                                    ImageSource="/Images/ImageMusic.png"
+                                                    Stretch="UniformToFill" />
+                                    </Rectangle.Fill>
+                                    
+                                </Rectangle>
 
                             </Border>
-
 
                         </StackPanel>
                     </Grid>
@@ -250,7 +256,7 @@
                                 Name="DurrationSlider"
                                 Background="{DynamicResource SidebarSliderBackgroundBrush}"
                                 IsMoveToPointEnabled="True"
-                                Style="{StaticResource CommonSliderStyle}" MouseUp="DurrationSlider_MouseUp" ValueChanged="DurrationSlider_ValueChanged" />
+                                Style="{StaticResource CommonSliderStyle}" />
 
                             <!--Текст "сколько прошло времени"-->
                             <TextBlock Name="PassedTimeText"
@@ -268,75 +274,95 @@
                     </Grid>
 
                     <Grid Grid.Column="2" Margin="5">
-                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                        <StackPanel>
+                            
+                            <Border Height="36"
+                                    Background="#E9EDF1"
+                                    Margin="5 0 0 0" 
+                                    CornerRadius="5">
+                                
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                            Orientation="Horizontal" >
+                                    
+                                    <!--Кнопка "Перемешать аудио"-->
+                                    <ToggleButton x:Name="RandomAudioButton"
+                                                  Width="32" Height="32"
+                                                  Style="{StaticResource ShuffleButtonStyle}" 
+                                                  RenderTransformOrigin="0.5,0.5" >
 
-                            <!--Кнопка "Громкость минимум"-->
-                            <Button
-                                Name="MinVolumeButton"
-                                Width="14"
-                                Margin="0,-4,10,0"
-                                HorizontalAlignment="Center"
-                                Opacity="0.5"
-                                Template="{StaticResource MuteButton}" />
+                                        <ToggleButton.RenderTransform>
+                                            <TransformGroup>
+                                                <ScaleTransform/>
+                                                <SkewTransform/>
+                                                <RotateTransform Angle="90"/>
+                                                <TranslateTransform/>
+                                            </TransformGroup>
+                                        </ToggleButton.RenderTransform>
 
-                            <!--  Качеля громкости  -->
-                            <Slider
-                                Name="VolumeSlider"
-                                Width="80"
-                                VerticalAlignment="Center"
-                                Background="{DynamicResource SidebarSliderBackgroundBrush}"
-                                IsMoveToPointEnabled="True"
-                                Style="{StaticResource VolumeSliderStyle}" MouseWheel="VolumeSlider_MouseWheel" ValueChanged="VolumeSlider_ValueChanged" />
+                                    </ToggleButton>
 
-                            <!--  Громкость максимум  -->
-                            <Button
-                                Name="MaxVolumeButton"
-                                Grid.Column="2"
-                                Width="14"
-                                Margin="10,-3,0,0"
-                                HorizontalAlignment="Center"
-                                Opacity="0.5"
-                                Template="{StaticResource VolumeButton}" />
+                                    <!--Кнопка "Повторять аудиозапись"-->
+                                    <ToggleButton x:Name="RepeatAudioButton" 
+                                                  Width="32" Height="32" 
+                                                  Style="{StaticResource RepeatButtonStyle}" >
 
-                            <!--Кнопка "Перемешать аудио"-->
-                            <ToggleButton Name="RandomAudioButton" Margin="15 35 0 0" Width="32" Height="32"
-                                          Style="{StaticResource ShuffleButtonStyle}" RenderTransformOrigin="0.5,0.5">
+                                        <ToggleButton.RenderTransform>
+                                            <TranslateTransform />
+                                        </ToggleButton.RenderTransform>
 
-                                <ToggleButton.RenderTransform>
-                                    <TransformGroup>
-                                        <ScaleTransform/>
-                                        <SkewTransform/>
-                                        <RotateTransform Angle="90"/>
-                                        <TranslateTransform/>
-                                    </TransformGroup>
-                                </ToggleButton.RenderTransform>
+                                    </ToggleButton>
 
+                                    <!--  Кнопка "выйти" (Пока не сделал её свойства)  -->
+                                    <ToggleButton x:Name="ExitVK"
+                                                  Width="32"
+                                                  Height="32"
+                                                  Style="{StaticResource VkStatusButtonStyle}">
 
+                                        <ToggleButton.RenderTransform>
+                                            <TranslateTransform />
+                                        </ToggleButton.RenderTransform>
 
-                            </ToggleButton>
+                                    </ToggleButton>
+                                    
+                                </StackPanel>
+                                
+                            </Border>
 
-                            <!--Кнопка "Повторять аудиозапись"-->
-                            <ToggleButton Name="PovtorAudioButton" Margin="0 35 0 0 " Width="32" Height="32" Style="{StaticResource RepeatButtonStyle}">
+                            <Border Margin="5 5 0 0 " 
+                                    Background="#E9EDF1"
+                                    Height="25" CornerRadius="5">
 
-                                <ToggleButton.RenderTransform>
-                                    <TranslateTransform />
-                                </ToggleButton.RenderTransform>
+                                <StackPanel Margin="5" 
+                                            VerticalAlignment="Center" 
+                                            Orientation="Horizontal" >
 
-                            </ToggleButton>
+                                    <!--Кнопка "Громкость минимум"-->
+                                    <Button x:Name="MinVolumeButton"
+                                            Width="14" 
+                                            Margin="0,0,10,0"
+                                            HorizontalAlignment="Center"
+                                            Opacity="0.5"
+                                            Template="{StaticResource MuteButton}" Click="MinVolumeButton_Click" />
 
-                            <!--  Кнопка "выйти" (Пока не сделал её свойства)  -->
-                            <ToggleButton
-                                Name="ExitVK"
-                                Width="32"
-                                Height="32"
-                                Margin="0,35,0,0"
-                                Style="{StaticResource VkStatusButtonStyle}">
+                                    <!--  Качеля громкости  -->
+                                    <Slider x:Name="VolumeSlider"
+                                            Width="80"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource SidebarSliderBackgroundBrush}"
+                                            IsMoveToPointEnabled="True"
+                                            Style="{StaticResource VolumeSliderStyle}" MouseWheel="VolumeSlider_MouseWheel" ValueChanged="VolumeSlider_ValueChanged" Height="14" />
 
-                                <ToggleButton.RenderTransform>
-                                    <TranslateTransform />
-                                </ToggleButton.RenderTransform>
+                                    <Button x:Name="MaxVolumeButton"
+                                            Grid.Column="2"
+                                            Width="14" 
+                                            Margin="10,0,0,0"
+                                            HorizontalAlignment="Center"
+                                            Opacity="0.5"
+                                            Template="{StaticResource VolumeButton}" Click="MaxVolumeButton_Click" />
 
-                            </ToggleButton>
+                                </StackPanel>
+
+                            </Border>
 
                         </StackPanel>
                     </Grid>
@@ -348,7 +374,7 @@
 
 
         <!-- PlayList-->
-        <Grid Grid.Row="1">
+        <Grid Name="GridPlayList" Visibility="Visible" Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1*" />
                 <ColumnDefinition Width="0.4*" />
@@ -361,8 +387,17 @@
                 </Border.Effect>
 
                 <Grid>
+                    
+                    <!--Поиск по музыке-->
+                    <TextBox Name="MusicSearch" Tag="  Поиск по музыке" 
+                             Height="30" Margin="10" 
+                             VerticalAlignment="Top" KeyDown="MusicSearch_KeyDown" KeyUp="MusicSearch_KeyUp" />
+                    
                     <!--Список аудиозаписей-->
-                    <ListBox Name="MusicList" Margin="5" />
+                    <ListBox  Name="MusicList" 
+                              MouseDoubleClick="MusicList_MouseDoubleClick" 
+                              ItemContainerStyle="{DynamicResource MetroListBoxItemStyle}" 
+                              Margin="5 60 5 5 " BorderThickness="0" />
                 </Grid>
             </Border>
 
@@ -383,9 +418,6 @@
 
             </Border>
         </Grid>
-
-
-
 
         <!--  Авторизация  -->
         <Grid
@@ -442,7 +474,7 @@
                 Name="btnLogin"
                 Width="100"
                 Height="37"
-                Margin="0,150,155,0"
+                Margin="0,165,155,0"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Background="#FF6BA1FF"
@@ -451,10 +483,16 @@
                 FontFamily="Segoe UI, Lucida Sans Unicode, Verdana"
                 FontSize="13"
                 FontWeight="Normal"
-                Foreground="White" />
+                Foreground="White" Click="BtnLogin_Click" />
 
+            <!--Текст (ошибка авторизации)-->
+            <TextBlock  Margin="0 100 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" Text="" 
+                        Name="Error"
+                        FontFamily="{StaticResource LatoRegular}"
+                        Foreground="{StaticResource Dr0bRedBrush}" />
+            
             <Button
-                Margin="100,151,0,0"
+                Margin="100,165,0,0"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Content="Забыли пароль?"

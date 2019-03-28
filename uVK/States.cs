@@ -20,14 +20,9 @@ class Playlist
         State.PrevSong(main);
     }
 
-    public void SetAudioInfo(uVK.MainWindow main, bool isback = false)
+    public void SetAudioInfo(uVK.MainWindow main, bool isback = false, bool fromClick = false)
     {
-        State.SetAudioInfo(main);
-    }
-
-    public void AudioMenuClick(uVK.MainWindow main)
-    {
-        State.AudioMenuClick(main);
+        State.SetAudioInfo(main, isback, fromClick);
     }
 
 }
@@ -36,8 +31,7 @@ interface IState
 {
     void NextSong(uVK.MainWindow main);
     void PrevSong(uVK.MainWindow main);
-    void SetAudioInfo(uVK.MainWindow main, bool isback = false);
-    void AudioMenuClick(uVK.MainWindow main);
+    void SetAudioInfo(uVK.MainWindow main, bool isback = false, bool fromClick = false);
 }
 /*
 class IdAudios : IState
@@ -136,85 +130,80 @@ class IdAudios : IState
 */
 class OwnAudios : IState
 {
-    public void AudioMenuClick(uVK.MainWindow main)
-    {
-        foreach (var audio in main.vkDatas.Audio)
-            if (audio.Artist + " - " + audio.Title == main.MusicList.SelectedItem.ToString())
-            {
-                main.api.Audio.Delete(audio.Id.GetValueOrDefault(), audio.OwnerId.GetValueOrDefault());
-            }
-    }
 
-    public void SetAudioInfo(uVK.MainWindow main, bool isback = false)
+    public void SetAudioInfo(uVK.MainWindow main, bool isback = false, bool fromClick = false)
     {
-        try
-        {
-            if (main.vkDatas._offset == -1)
-                throw new Exception();
+        if (fromClick)
             foreach (var audio in main.vkDatas.Audio)
+            {
                 if (audio.Artist + " - " + audio.Title == main.MusicList.SelectedItem.ToString())
                 {
-                    main.vkDatas._offset = main.MusicList.SelectedIndex;
+                    main.vkDatas.OffsetOwn = main.MusicList.SelectedIndex;
                     bool th = false;
-                    while (main.vkDatas.Audio[main.vkDatas._offset].Url == null)
+                    while (main.vkDatas.Audio[main.vkDatas.OffsetOwn].Url == null)
                     {
                         if (isback)
-                            main.vkDatas._offset--;
+                            main.vkDatas.OffsetOwn--;
                         else
-                            main.vkDatas._offset++;
+                            main.vkDatas.OffsetOwn++;
                         th = true;
                     }
                     if (th) throw new Exception("1");
                     main.player.URL = audio.Url.ToString();
                     main.MusicArtist.Text = audio.Artist;
                     main.MusicName.Text = audio.Title;
-                    main.player.controls.play();
-                    try
-                    {
-                        var uriImageSource = new Uri(main.vkDatas.Audio[main.vkDatas._offset].Album.Cover.Photo135, UriKind.RelativeOrAbsolute);
-                        main.MusicImage.Source = new System.Windows.Media.Imaging.BitmapImage(uriImageSource);
-                    }
-                    catch { }
+                    main.player.controls.play();                    
                     break;
                 }
+            }
+        else
+        {
+            main.player.URL = main.vkDatas.Audio[main.vkDatas.OffsetOwn].Url.ToString();
+            main.MusicArtist.Text = main.vkDatas.Audio[main.vkDatas.OffsetOwn].Artist;
+            main.MusicName.Text = main.vkDatas.Audio[main.vkDatas.OffsetOwn].Title;
+            for (int i = 0; i < main.MusicList.Items.Count; i++)
+                if (main.MusicList.Items[i].ToString() == main.vkDatas.Audio[main.vkDatas.OffsetOwn].Artist + " - " + main.vkDatas.Audio[main.vkDatas.OffsetOwn].Title)
+                {
+                    string str = main.MusicList.Items[i].ToString();
+                    main.MusicList.SelectedIndex = i;
+                    break;
+                }
+            main.player.controls.play();
+        }
 
+        try
+        {
+            var uriImageSource = new Uri(main.vkDatas.Audio[main.vkDatas.OffsetOwn].Album.Cover.Photo135, UriKind.RelativeOrAbsolute);
+            main.MusicImage.ImageSource = new System.Windows.Media.Imaging.BitmapImage(uriImageSource);
         }
         catch
         {
-            Thread.Sleep(270);
-            if (main.vkDatas._offset == -1)
-                main.vkDatas._offset++;
-            main.player.settings.volume = (int) main.VolumeSlider.Value;
-            main.player.URL = main.vkDatas.Audio[main.vkDatas._offset].Url.ToString();
-            main.MusicArtist.Text = main.vkDatas.Audio[main.vkDatas._offset].Artist;
-            main.MusicName.Text = main.vkDatas.Audio[main.vkDatas._offset].Title;
-            main.DurrationTimer.Start();
-            main.DurrationSlider.Value = 0;
-            main.AddAudioToList(main.vkDatas.Audio);
-            main.MusicList.SelectedIndex = main.vkDatas._offset;
+            var uriImageSource = new Uri("https://raw.githubusercontent.com/dr0b99/uVK/master/uVK/Images/ImageMusic.png", UriKind.RelativeOrAbsolute);
+            main.MusicImage.ImageSource = new System.Windows.Media.Imaging.BitmapImage(uriImageSource);
         }
     }
 
     public void NextSong(uVK.MainWindow main)
     {
-        if (main.VkBools.random)
+        if (main.RandomAudioButton.IsChecked.Value)
         {
             Random rnds = new Random();
             int value = rnds.Next(0, int.Parse(main.api.Audio.GetCount(main.vkDatas.user_id).ToString()) - 1);
             main.MusicList.SelectedIndex = value;
             Thread.Sleep(270);
+            main.vkDatas.OffsetOwn += 1;
             SetAudioInfo(main);
         }
         else
         {
             try
             {
-                main.MusicList.SelectedIndex += 1;
+                main.vkDatas.OffsetOwn += 1;
                 SetAudioInfo(main);
             }
             catch
             {
-                main.MusicList.SelectedIndex = 0;
+                main.vkDatas.OffsetOwn += 1;
                 SetAudioInfo(main);
             }
         }
@@ -225,9 +214,9 @@ class OwnAudios : IState
         try
         {
 
-            main.MusicList.SelectedIndex -= 1;
-            if (main.MusicList.SelectedIndex == -1)
-                main.MusicList.SelectedIndex = int.Parse(main.api.Audio.GetCount(main.vkDatas.user_id).ToString()) - 1;
+            main.vkDatas.OffsetOwn -= 1; ;
+            if (main.vkDatas.OffsetOwn == -1)
+                main.vkDatas.OffsetOwn = int.Parse(main.api.Audio.GetCount(main.vkDatas.user_id).ToString()) - 1;
             SetAudioInfo(main, true);
         }
         catch
@@ -266,7 +255,7 @@ class SearchAudios : IState
     {
         if (main.vkDatas.SearchAudios != null)
         {
-            if (main.VkBools.random)
+            if (main.RandomAudioButton.IsChecked.Value)
             {
                 Random rnds = new Random();
                 int value;
@@ -289,7 +278,7 @@ class SearchAudios : IState
             }
         }
     }
-    public void SetAudioInfo(uVK.MainWindow main, bool isback = false)
+    public void SetAudioInfo(uVK.MainWindow main, bool isback = false, bool fromClick = false)
     {
         foreach (var audio in main.vkDatas.SearchAudios)
             if (audio.Artist + " - " + audio.Title == main.MusicList.SelectedItem.ToString())
@@ -300,7 +289,17 @@ class SearchAudios : IState
                     main.MusicArtist.Text = audio.Artist;
                     main.MusicName.Text = audio.Title;
                     main.player.controls.play();
-                    break;
+                    try
+                    {
+                        var uriImageSource = new Uri(main.vkDatas.SearchAudios[main.vkDatas.OffsetSearch].Album.Cover.Photo68, UriKind.RelativeOrAbsolute);
+                        main.MusicImage.ImageSource = new System.Windows.Media.Imaging.BitmapImage(uriImageSource);
+                    }
+                    catch
+                    {
+                        var uriImageSource = new Uri("https://raw.githubusercontent.com/dr0b99/uVK/master/uVK/Images/ImageMusic.png", UriKind.RelativeOrAbsolute);
+                        main.MusicImage.ImageSource = new System.Windows.Media.Imaging.BitmapImage(uriImageSource);
+                    }
+                        break;
                 }
                 else if (isback)
                 {
@@ -313,24 +312,11 @@ class SearchAudios : IState
                     SetAudioInfo(main, false);
                 }
             }
-        //if (main.VkBools.isBlack)
-        //    main.play_pause_btn.Image = Resource1.pause_white;
-        //else
-        //    main.play_pause_btn.Image = Resource1.pause;
-        //main.VkBools.isPlay = true;
     }
 }
 
 class RecommendedAudio : IState
 {
-    public void AudioMenuClick(uVK.MainWindow main)
-    {
-        foreach (var audio in main.vkDatas.RecommendedAudio)
-            if (audio.Artist + " - " + audio.Title == main.MusicList.SelectedItem.ToString())
-            {
-                main.api.Audio.Add(audio.Id.GetValueOrDefault(), audio.OwnerId.GetValueOrDefault());
-            }
-    }
     public void PrevSong(uVK.MainWindow main)
     {
         try
@@ -348,7 +334,7 @@ class RecommendedAudio : IState
 
     public void NextSong(uVK.MainWindow main)
     {
-        if (main.VkBools.random)
+        if (main.RandomAudioButton.IsChecked.Value)
         {
             Random rnds = new Random();
             int value = rnds.Next(0, main.MusicList.Items.Count);
@@ -369,7 +355,7 @@ class RecommendedAudio : IState
             }
         }
     }
-    public void SetAudioInfo(uVK.MainWindow main, bool isback = false)
+    public void SetAudioInfo(uVK.MainWindow main, bool isback = false, bool fromClick = false)
     {
         if (main.MusicList.SelectedIndex == -1)
             main.MusicList.SelectedIndex = 0;
@@ -395,25 +381,10 @@ class RecommendedAudio : IState
                     SetAudioInfo(main, false);
                 }
             }
-        //if (main.VkBools.isBlack)
-        //    main.play_pause_btn.Image = Resource1.pause_white;
-        //else
-        //    main.play_pause_btn.Image = Resource1.pause;
-        //main.VkBools.isPlay = true;
     }
 }
-
-
 class HotAudio : IState
 {
-    public void AudioMenuClick(uVK.MainWindow main)
-    {
-        foreach (var audio in main.vkDatas.HotAudios)
-            if (audio.Artist + " - " + audio.Title == main.MusicList.SelectedItem.ToString())
-            {
-                main.api.Audio.Add(audio.Id.GetValueOrDefault(), audio.OwnerId.GetValueOrDefault());
-            }
-    }
     public void PrevSong(uVK.MainWindow main)
     {
         try
@@ -431,7 +402,7 @@ class HotAudio : IState
 
     public void NextSong(uVK.MainWindow main)
     {
-        if (main.VkBools.random)
+        if (main.RandomAudioButton.IsChecked.Value)
         {
             Random rnds = new Random();
             int value = rnds.Next(0, main.MusicList.Items.Count);
@@ -452,7 +423,7 @@ class HotAudio : IState
             }
         }
     }
-    public void SetAudioInfo(uVK.MainWindow main, bool isback = false)
+    public void SetAudioInfo(uVK.MainWindow main, bool isback = false, bool fromClick = false)
     {
         foreach (var audio in main.vkDatas.HotAudios)
             if (audio.Artist + " - " + audio.Title == main.MusicList.SelectedItem.ToString())
@@ -476,10 +447,7 @@ class HotAudio : IState
                     SetAudioInfo(main, false);
                 }
             }
-        //if (main.VkBools.isBlack)
-        //    main.play_pause_btn.Image = Resource1.pause_white;
-        //else
-        //    main.play_pause_btn.Image = Resource1.pause;
-        //main.VkBools.isPlay = true;
     }
 }
+
+

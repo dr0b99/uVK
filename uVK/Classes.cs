@@ -2,30 +2,18 @@
 
 public class Switches
 {
-    public bool isPlay { get; set; } = false;
-    public bool mute { get; set; } = false;
-    public bool isBlack { get; set; } = false;
-    public bool IsMaximize { get; set; } = false;
-    public bool repeat { get; set; } = false;
     public bool IsSearch { get; set; } = false;
     public bool IsHot { get; set; } = false;
     public bool IsRecommend { get; set; } = false;
     public bool IsOwn { get; set; } = true;
-    public bool random { get; set; } = false;
-    public bool isId { get; set; } = false;
+    public bool IsId { get; set; } = false;
     public Switches()
     {
-        isPlay = false;
-        mute = false;
-        isBlack = false;
-        IsMaximize  = false;
-        repeat  = false;
         IsSearch  = false;
         IsHot = false;
         IsRecommend  = false;
         IsOwn = true;
-        random = false;
-        isId  = false;
+        IsId  = false;
     }
 }
 
@@ -38,9 +26,12 @@ public class VkDatas
     public System.Collections.Generic.IEnumerable<VkNet.Model.Attachments.Audio> HotAudios { get; set; }
     public long user_id { get; set; }
     public ServiceCollection service { get; set; }
-    public int _offset { get; set; } = -1;
+    public int OffsetOwn = 0;
+    public int OffsetSearch = 0;
+    public int OffsetHot = -1;
+    public int OffsetRecom = -1;
     public VkDatas()
     {
-        _offset = -1;
+
     }
 }

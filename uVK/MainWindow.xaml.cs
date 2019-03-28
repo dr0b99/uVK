@@ -1,24 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.IO;
-using System.Drawing;
 using VkNet.Abstractions;
 using VkNet.Model.RequestParams;
 using WMPLib;
 using VkNet.Model;
-using VkNet.AudioBypassService;
 using VkNet.Enums.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using VkNet;
@@ -27,23 +15,19 @@ using System.Windows.Threading;
 
 namespace uVK
 {
-    /// <summary>
-    /// Логика взаимодействия для MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         public WMPLib.WindowsMediaPlayer player;
         public DispatcherTimer DurrationTimer;
         public string Token = null;
         public IVkApi api;
-        public string code = null;
         public Random rnd;
-        private int clr;
         Playlist playlist;
         public Switches VkBools;
         public VkDatas vkDatas;
         public bool isAuth = false;
-
+        string state = "OWN";
+        private bool ChangePlaylist;
         public MainWindow()
         {
             InitializeComponent();
@@ -53,23 +37,105 @@ namespace uVK
             playlist = new Playlist(new OwnAudios());
             if (File.Exists("auth.dat"))
             {
+                gridLogin.Visibility = Visibility.Hidden;
                 Token = File.ReadAllText("auth.dat");
                 GetAuth();
-                gridMain.Visibility = Visibility.Visible;
                 gridLogin.Visibility = Visibility.Hidden;
-            }
+                DoAfterLogin();
+            }            
+        }
+
+        private void DoAfterLogin()
+        {
             player = new WindowsMediaPlayer();
             DurrationTimer = new DispatcherTimer
             {
-                Interval = new TimeSpan(0, 0, 0, 0, 400)
+                Interval = new TimeSpan(0, 0, 0, 0, 300)
             };
             DurrationTimer.Stop();
             DurrationTimer.Tick += DurrationTimer_Tick;
             VolumeSlider.Maximum = 100;
             VolumeSlider.Value = 30;
             vkDatas.Audio = api.Audio.Get(new AudioGetParams { Count = api.Audio.GetCount(vkDatas.user_id) });
+            AddAudioToList(vkDatas.Audio);
             playlist.SetAudioInfo(this);
+            DurrationTimer.Start();
             player.controls.stop();
+            DownloadFriendList();
+            
+        }
+
+        private void DownloadFriendList()
+        {
+            var friends = api.Friends.Get(new FriendsGetParams
+            {
+                Fields = ProfileFields.All,
+                //Order = Order.Name
+            });
+            foreach (var friend in friends)
+                this.FrendList.Items.Add($"{friend.FirstName} {friend.LastName}");
+        }
+
+        private void SwitchStatesOff()
+        {
+            VkBools.IsHot = false;
+            VkBools.IsOwn = false;
+            VkBools.IsRecommend = false;
+            VkBools.IsSearch = false;
+        }
+
+        private void SetAndDownloadState(string State)
+        {
+            this.state = State.ToUpper();
+            switch (state)
+            {
+                case "OWN":
+                    SwitchStatesOff();
+                    MusicList.Items.Clear();
+                    VkBools.IsOwn = true;
+                    AddAudioToList(vkDatas.Audio);
+                    vkDatas.OffsetOwn = -1;
+                    break;
+                case "HOT":
+                    SwitchStatesOff();
+                    MusicList.Items.Clear();
+                    VkBools.IsHot = true;
+                    vkDatas.HotAudios = api.Audio.GetPopular(false, null, 35, null);
+                    vkDatas.OffsetHot = -1;
+                    foreach (var audio in vkDatas.HotAudios)
+                        MusicList.Items.Add($"{audio.Artist} - {audio.Title}");
+                    break;
+                case "SEARCH":
+                    SwitchStatesOff();
+                    MusicList.Items.Clear();
+                    VkBools.IsSearch = true;
+                    vkDatas.OffsetSearch = -1;
+                    MusicList.Items.Clear();
+                    try
+                    {
+                        vkDatas.SearchAudios = api.Audio.Search(new AudioSearchParams
+                        {
+                            Query = MusicSearch.Text,
+                            Autocomplete = true,
+                            SearchOwn = true,
+                            Count = 50,
+                            PerformerOnly = false
+                        });
+                        AddAudioToList(vkDatas.SearchAudios);
+                    }
+                    catch { }
+                    break;
+                case "RECOM":
+                    SwitchStatesOff();
+                    MusicList.Items.Clear();
+                    VkBools.IsRecommend = true;
+                    //playlist = new Playlist(new RecommendedAudio());
+                    vkDatas.RecommendedAudio = api.Audio.GetRecommendations(null, null, 50, null, true);
+                    vkDatas.OffsetRecom = -1;
+                    AddAudioToList(vkDatas.RecommendedAudio);
+                    break;               
+
+            }
         }
 
         private void DurrationTimer_Tick(object sender, EventArgs e)
@@ -79,6 +145,12 @@ namespace uVK
             DurrationSlider.Maximum = (int)player.currentMedia.duration;
             DurrationSlider.Value = (int)player.controls.currentPosition;
             PassedTimeText.Text = player.controls.currentPositionString;
+            if (player.status == "Остановлено")
+            {
+                if (!RepeatAudioButton.IsChecked.Value)
+                    playlist.NextSong(this);
+                player.controls.play();
+            }
         }
 
         private void AppWindow_Deactivated(object sender, EventArgs e)
@@ -105,39 +177,44 @@ namespace uVK
 
         private void Auth2Fact(string login, string password)
         {
-            api.Authorize(new ApiAuthParams
+            string trueCode;
+            bool needCode = false;
+            try
             {
-                Login = login,
-                Password = password,
-                Settings = Settings.Offline,
-                TwoFactorAuthorization = () =>
+                api.Authorize(new ApiAuthParams
                 {
-                    while (code == null)
+                    Login = login,
+                    Password = password,
+                    Settings = Settings.Offline,
+                    TwoFactorAuthorization = () =>
                     {
-                        code = File.ReadAllText("someFile.tempdat");
+                        needCode = true;
+                        return "0";
                     }
-                    System.IO.File.Delete("someFile.tempdat");
-                    return code;
-                }
-            });
-            vkDatas.user_id = api.UserId.GetHashCode();
-            File.WriteAllText("user_id.dat", vkDatas.user_id.ToString());
-            File.WriteAllText("auth.dat", api.Token);
-            Show();
-        }
-
-        private void AuthLogPass(string login, string password)
-        {
-            api.Authorize(new ApiAuthParams
+                });
+            }
+            catch
             {
-                Login = login,
-                Password = password,
-                Settings = Settings.Offline
-            });
-            vkDatas.user_id = api.UserId.GetHashCode();
-            File.WriteAllText("user_id.dat", vkDatas.user_id.ToString());
-            File.WriteAllText("auth.dat", api.Token);
-            Show();
+                if (!needCode)
+                    return;
+                var input = new InputBoxWindow();
+                input.ShowDialog();
+                trueCode = File.ReadAllText("someFile.tempdat");
+
+                api.Authorize(new ApiAuthParams
+                {
+                    Login = login,
+                    Password = password,
+                    Settings = Settings.Offline,
+                    TwoFactorAuthorization = () =>
+                    {
+                        string code = File.ReadAllText("someFile.tempdat");                        
+                        return code;
+                    }
+                });
+                System.IO.File.Delete("someFile.tempdat");
+            }
+
         }
 
         public void GetAuth(string login = null, string password = null)
@@ -152,20 +229,13 @@ namespace uVK
             }
             else
             {
-                try
+                Auth2Fact(login, password);
+                if (api.IsAuthorized)
                 {
-                    Auth2Fact(login, password);
-                    if (!api.IsAuthorized)
-                        AuthLogPass(login, password);
+                    rnd = new Random();
+                    isAuth = true;
                 }
-                catch
-                {
-                    //MessageBox.Show("Неверный логин или пароль", "Ошибка", MessageBoxButtons.OK);
-                }
-
             }
-            rnd = new Random();
-            isAuth = true;
         }
 
 
@@ -183,27 +253,19 @@ namespace uVK
 
         private void PauseButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!VkBools.isPlay)
+            if (PauseButton.IsChecked.Value)
             {
                 player.controls.play();
-                VkBools.isPlay = true;
             }
             else
             {
                 player.controls.pause();
-                VkBools.isPlay = false;
             }
         }
 
         private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             player.settings.volume = (int) (sender as Slider).Value;
-        }
-
-        private void DurrationSlider_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            player.controls.currentPosition = DurrationSlider.Value;
-            DurrationTimer.Start();
         }
 
         private void VolumeSlider_MouseWheel(object sender, MouseWheelEventArgs e)
@@ -218,19 +280,81 @@ namespace uVK
             }
         }
 
-        private void DurrationSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            player.controls.currentPosition = DurrationSlider.Value;
-        }
-
         private void NextAudioButton_Click(object sender, RoutedEventArgs e)
         {
             playlist.NextSong(this);
+            PauseButton.IsChecked = true;
         }
 
         private void BackAudioButton_Click(object sender, RoutedEventArgs e)
         {
             playlist.PrevSong(this);
+            PauseButton.IsChecked = true;
+        }
+
+        private void BtnLogin_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                GetAuth(tbLogin.Text, tbPassword.Password);
+            }
+            catch
+            { }
+            if (isAuth == true)
+            {
+                File.WriteAllText("user_id.dat", api.UserId.Value.ToString());
+                File.WriteAllText("auth.dat", api.Token);
+                vkDatas.user_id = api.UserId.GetHashCode();
+                Token = api.Token;
+                vkDatas.user_id = api.UserId.Value;
+                gridLogin.Visibility = Visibility.Hidden;
+                DoAfterLogin();
+            }
+            else
+            {
+                Error.Text = "Неправильный логин или пароль";
+            }
+        }
+
+        private void MusicList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            switch (state)
+            {
+                case "OWN":
+                    playlist = new Playlist(new OwnAudios());
+                    break;
+                case "SEARCH":
+                    playlist = new Playlist(new SearchAudios());
+                    break;
+            }
+            playlist.SetAudioInfo(this, fromClick:true);
+            PauseButton.IsChecked = true;
+        }
+
+        private void MaxVolumeButton_Click(object sender, RoutedEventArgs e)
+        {
+            VolumeSlider.Value = 100;
+        }
+
+        private void MinVolumeButton_Click(object sender, RoutedEventArgs e)
+        {
+            VolumeSlider.Value = 0;
+        }
+
+        private void MusicSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                SetAndDownloadState("search");
+            }
+        }
+
+        private void MusicSearch_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (String.IsNullOrWhiteSpace(MusicSearch.Text))
+            {
+                SetAndDownloadState("own");
+            }
         }
     }
 }
